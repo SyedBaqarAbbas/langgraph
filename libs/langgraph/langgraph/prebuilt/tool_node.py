@@ -36,7 +36,7 @@ from typing_extensions import Annotated, get_args, get_origin
 
 from langgraph.errors import GraphBubbleUp
 from langgraph.store.base import BaseStore
-from langgraph.types import Command
+from langgraph.types import Command, StateSnapshot
 from langgraph.utils.runnable import RunnableCallable
 
 INVALID_TOOL_NAME_ERROR_TEMPLATE = (
@@ -574,7 +574,7 @@ class ToolNode(RunnableCallable):
 
 
 def tools_condition(
-    state: Union[list[AnyMessage], dict[str, Any], BaseModel],
+    state: Union[list[AnyMessage], dict[str, Any], BaseModel, StateSnapshot],
     messages_key: str = "messages",
 ) -> Literal["tools", "__end__"]:
     """Use in the conditional_edge to route to the ToolNode if the last message
@@ -582,7 +582,7 @@ def tools_condition(
     has tool calls. Otherwise, route to the end.
 
     Args:
-        state (Union[list[AnyMessage], dict[str, Any], BaseModel]): The state to check for
+        state (Union[list[AnyMessage], dict[str, Any], BaseModel, StateSnapshot]): The state to check for
             tool calls. Must have a list of messages (MessageGraph) or have the
             "messages" key (StateGraph).
 
@@ -630,6 +630,8 @@ def tools_condition(
     if isinstance(state, list):
         ai_message = state[-1]
     elif isinstance(state, dict) and (messages := state.get(messages_key, [])):
+        ai_message = messages[-1]
+    elif isinstance(state, StateSnapshot) and (messages := state.values.get(messages_key, [])):
         ai_message = messages[-1]
     elif messages := getattr(state, messages_key, []):
         ai_message = messages[-1]
